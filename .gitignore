@@ -15,3 +15,5 @@ wheels/
 .env.*.env
 __pycache__/
 .venv/
+
+!.env.example
