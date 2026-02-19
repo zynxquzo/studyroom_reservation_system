@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from database import engine, Base
+from study_room.routers.auth_router import router as auth_router
 # from mysite4.models.post import Post  # 모델 파일이 import되어야 Base가 인식한다.
 
 # 기존 테이블 지우기
@@ -10,6 +11,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+app.include_router(auth_router) 
 
 @app.get("/")
 def read_root():
