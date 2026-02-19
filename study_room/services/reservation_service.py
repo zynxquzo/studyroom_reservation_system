@@ -1,5 +1,3 @@
-# study_room/services/reservation_service.py
-
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
@@ -34,25 +32,33 @@ class ReservationService:
                 detail=f"운영 시간({room.open_time.strftime('%H:%M')} ~ {room.close_time.strftime('%H:%M')}) 내에서만 예약 가능합니다.",
             )
 
-        with db.begin():
-            # 중복 예약 체크
-            if reservation_repository.find_conflict(db, data.room_id, data.reservation_date, start_time):
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="이미 예약된 시간입니다.",
-                )
-
-            new_reservation = Reservation(
-                user=current_user,
-                room=room,
-                reservation_date=data.reservation_date,
-                start_time=start_time,
-                end_time=end_time,
-                status="예약확정",
+        # 중복 예약 체크 (트랜잭션 밖에서 조회)
+        if reservation_repository.find_conflict(db, data.room_id, data.reservation_date, start_time):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="이미 예약된 시간입니다.",
             )
-            reservation_repository.save(db, new_reservation)
 
-        db.refresh(new_reservation)
+        new_reservation = Reservation(
+            user_id=current_user.id,  # relationship(user=user) 대신 외래키 직접 지정이 더 명확할 때가 있습니다.
+            room_id=room.room_id,
+            reservation_date=data.reservation_date,
+            start_time=start_time,
+            end_time=end_time,
+            status="예약확정",
+        )
+
+        try:
+            reservation_repository.save(db, new_reservation)
+            db.commit()      # 데이터베이스에 확정 반영
+            db.refresh(new_reservation) # 생성된 ID 등을 다시 읽어옴
+        except Exception as e:
+            db.rollback()    # 에러 발생 시 되돌리기
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="예약 저장 중 오류가 발생했습니다."
+            )
+
         return ReservationResponse(
             id=new_reservation.id,
             room_name=room.name,
@@ -95,8 +101,12 @@ class ReservationService:
                 detail="예약 취소는 이용 시간 1시간 전까지만 가능합니다.",
             )
 
-        with db.begin():
-            reservation.status = "취소"
+        try:
+            reservation.status = "취소" # 더티 체킹(Dirty Checking)으로 상태 변경
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="취소 처리 중 오류가 발생했습니다.")
 
 
 reservation_service = ReservationService()
