@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
@@ -13,6 +13,24 @@ class ReservationService:
     def create_reservation(self, db: Session, data: ReservationCreate, current_user: User) -> ReservationResponse:
         room = study_room_service.read_room_by_id(db, data.room_id)
 
+    # 1. [추가] 생성 시점에서도 7일 제한 및 과거 날짜 체크
+        today = date.today()
+        if data.reservation_date < today or data.reservation_date > today + timedelta(days=7):
+            raise HTTPException(
+                status_code=400, 
+                detail="예약은 오늘부터 7일 이내의 날짜만 가능합니다."
+            )
+
+        # 2. [추가] 하루 최대 2회(2시간) 제한 체크
+        # repository에 count_by_user_and_date 메서드를 만들어야 함
+        user_daily_count = reservation_repository.count_by_user_and_date(
+            db, current_user.id, data.reservation_date
+        )
+        if user_daily_count >= 2:
+            raise HTTPException(
+                status_code=400, 
+                detail="하루에 최대 2시간(2회)까지만 예약 가능합니다."
+            )
         # 시간 파싱
         try:
             start_time = datetime.strptime(data.start_time, "%H:%M").time()

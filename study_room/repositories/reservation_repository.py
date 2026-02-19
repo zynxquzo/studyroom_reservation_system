@@ -2,7 +2,7 @@
 
 from datetime import date, time
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from study_room.models.reservation import Reservation
 
 
@@ -39,6 +39,14 @@ class ReservationRepository:
             )
         )
         return db.scalar(stmt)
+    
+    def count_by_user_and_date(self, db: Session, user_id: int, res_date: date) -> int:
+        """특정 유저의 특정 날짜 '예약확정' 상태인 예약 건수를 반환"""
+        return db.query(Reservation).filter(
+            Reservation.user_id == user_id,
+            Reservation.reservation_date == res_date,
+            Reservation.status == "예약확정"
+        ).count()
 
 
 reservation_repository = ReservationRepository()
