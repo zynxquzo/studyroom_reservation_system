@@ -1,13 +1,13 @@
 # study_room/schemas/review.py
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ReviewCreate(BaseModel):
     reservation_id: int
-    rating: float
-    content: str | None = None
+    rating: float = Field(ge=1, le=5, description="별점 (1.0 ~ 5.0)")
+    content: str = Field(min_length=10, max_length=500, description="리뷰 내용 (10자 이상)")
 
 
 class ReviewResponse(BaseModel):
@@ -22,7 +22,7 @@ class ReviewResponse(BaseModel):
 
 class ReviewListItem(BaseModel):
     id: int
-    student_id: str  # 마스킹 처리된 학번
+    student_id: str
     rating: float
     content: str | None
     created_at: datetime
