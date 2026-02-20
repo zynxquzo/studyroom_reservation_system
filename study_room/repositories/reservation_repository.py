@@ -1,35 +1,36 @@
 # study_room/repositories/reservation_repository.py
 
 from datetime import date, time
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from sqlalchemy import select, and_, func
 from study_room.models.reservation import Reservation
 
 
 class ReservationRepository:
-    def save(self, db: Session, reservation: Reservation):
+    async def save(self, db: AsyncSession, reservation: Reservation):
         db.add(reservation)
         return reservation
 
-    def find_by_user_id(self, db: Session, user_id: int):
+    async def find_by_user_id(self, db: AsyncSession, user_id: int):
         stmt = (
             select(Reservation)
             .options(joinedload(Reservation.room))
             .where(Reservation.user_id == user_id)
             .order_by(Reservation.reservation_date.desc(), Reservation.start_time.desc())
         )
-        return db.scalars(stmt).all()
+        result = await db.scalars(stmt)
+        return result.all()
 
-    def find_by_id(self, db: Session, reservation_id: int):
+    async def find_by_id(self, db: AsyncSession, reservation_id: int):
         stmt = (
             select(Reservation)
             .options(joinedload(Reservation.room))
             .where(Reservation.id == reservation_id)
         )
-        return db.scalars(stmt).first()
+        return await db.scalar(stmt)
 
-    def find_conflict(self, db: Session, room_id: int, reservation_date: date, start_time: time):
-        """중복 예약 확인"""
+    async def find_conflict(self, db: AsyncSession, room_id: int, reservation_date: date, start_time: time):
         stmt = select(Reservation).where(
             and_(
                 Reservation.room_id == room_id,
@@ -38,15 +39,15 @@ class ReservationRepository:
                 Reservation.status != "취소",
             )
         )
-        return db.scalar(stmt)
-    
-    def count_by_user_and_date(self, db: Session, user_id: int, res_date: date) -> int:
-        """특정 유저의 특정 날짜 '예약확정' 상태인 예약 건수를 반환"""
-        return db.query(Reservation).filter(
+        return await db.scalar(stmt)
+
+    async def count_by_user_and_date(self, db: AsyncSession, user_id: int, res_date: date) -> int:
+        stmt = select(func.count()).select_from(Reservation).where(
             Reservation.user_id == user_id,
             Reservation.reservation_date == res_date,
-            Reservation.status == "예약확정"
-        ).count()
+            Reservation.status == "예약확정",
+        )
+        return await db.scalar(stmt) or 0
 
 
 reservation_repository = ReservationRepository()
