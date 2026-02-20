@@ -36,7 +36,13 @@ class ReservationService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"운영 시간({room.open_time.strftime('%H:%M')} ~ {room.close_time.strftime('%H:%M')}) 내에서만 예약 가능합니다.",
             )
-
+        
+        if await reservation_repository.find_user_conflict(db, current_user.id, data.reservation_date, start_time):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="해당 시간에 이미 다른 방 예약이 있습니다.",
+            )
+        
         if await reservation_repository.find_conflict(db, data.room_id, data.reservation_date, start_time):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="이미 예약된 시간입니다.")
 
