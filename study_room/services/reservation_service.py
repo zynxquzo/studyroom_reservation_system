@@ -67,6 +67,22 @@ class ReservationService:
 
     async def read_my_reservations(self, db: AsyncSession, current_user: User) -> MyReservationsResponse:
         reservations = await reservation_repository.find_by_user_id(db, current_user.id)
+
+        now = datetime.now()
+        today = now.date()
+        current_time = now.time()
+
+        # 조회 시점에 상태 업데이트
+        async with db.begin():
+            for r in reservations:
+                if r.status == "예약확정":
+                    ended = (
+                        r.reservation_date < today or
+                        (r.reservation_date == today and r.end_time <= current_time)
+                    )
+                    if ended:
+                        r.status = "이용완료"
+
         items = [
             ReservationResponse(
                 id=r.id,
