@@ -1,25 +1,25 @@
 # study_room/repositories/user_repository.py
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from study_room.models.user import User
 
 
 class UserRepository:
-    def save(self, db: Session, user: User):
+    async def save(self, db: AsyncSession, user: User):
         db.add(user)
         return user
 
-    def find_by_student_id(self, db: Session, student_id: str):
+    async def find_by_student_id(self, db: AsyncSession, student_id: str):
         stmt = select(User).where(User.student_id == student_id)
-        return db.scalars(stmt).first()
+        return await db.scalar(stmt)
 
-    def find_by_id(self, db: Session, user_id: int):
-        return db.get(User, user_id)
+    async def find_by_id(self, db: AsyncSession, user_id: int):
+        return await db.get(User, user_id)
 
-    def exists_by_student_id(self, db: Session, student_id: str) -> bool:
+    async def exists_by_student_id(self, db: AsyncSession, student_id: str) -> bool:
         stmt = select(User).where(User.student_id == student_id)
-        return db.scalar(stmt) is not None
+        return await db.scalar(stmt) is not None
 
 
 user_repository = UserRepository()
