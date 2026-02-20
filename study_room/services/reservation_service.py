@@ -56,8 +56,8 @@ class ReservationService:
         )
 
         try:
-            async with db.begin():
-                await reservation_repository.save(db, new_reservation)
+            await reservation_repository.save(db, new_reservation)
+            await db.commit() # 명시적 커밋
             await db.refresh(new_reservation)
         except Exception:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="예약 저장 중 오류가 발생했습니다.")
@@ -70,7 +70,7 @@ class ReservationService:
             end_time=new_reservation.end_time.strftime("%H:%M"),
             status=new_reservation.status,
         )
-
+    
     async def read_my_reservations(self, db: AsyncSession, current_user: User) -> MyReservationsResponse:
         reservations = await reservation_repository.find_by_user_id(db, current_user.id)
 
@@ -78,16 +78,20 @@ class ReservationService:
         today = now.date()
         current_time = now.time()
 
-        # 조회 시점에 상태 업데이트
-        async with db.begin():
-            for r in reservations:
-                if r.status == "예약확정":
-                    ended = (
-                        r.reservation_date < today or
-                        (r.reservation_date == today and r.end_time <= current_time)
-                    )
-                    if ended:
-                        r.status = "이용완료"
+        # async with db.begin(): 를 제거합니다.
+        updated = False
+        for r in reservations:
+            if r.status == "예약확정":
+                ended = (
+                    r.reservation_date < today or
+                    (r.reservation_date == today and r.end_time <= current_time)
+                )
+                if ended:
+                    r.status = "이용완료"
+                    updated = True
+        
+        if updated:
+            await db.commit() # 변경된 상태를 DB에 반영
 
         items = [
             ReservationResponse(
@@ -117,8 +121,8 @@ class ReservationService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="예약 취소는 이용 시간 1시간 전까지만 가능합니다.")
 
         try:
-            async with db.begin():
-                reservation.status = "취소"
+            reservation.status = "취소"
+            await db.commit() # 명시적 커밋
         except Exception:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="취소 처리 중 오류가 발생했습니다.")
 
