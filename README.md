@@ -6,9 +6,10 @@
 
 ## 🛠 Tech Stack
 
-* **Framework**: `FastAPI`
+* **Framework**: `FastAPI` (Asynchronous API Support)
 * **Database**: `PostgreSQL`
-* **ORM**: `SQLAlchemy`
+* **Database Driver**: `asyncpg` (Asynchronous Python driver for PostgreSQL)
+* **ORM**: `SQLAlchemy 2.0` (`AsyncSession` for non-blocking DB operations)
 * **Authentication**: `JWT (JSON Web Token)`, `Passlib(bcrypt)`
 * **Dependency Management**: `uv`
 * **Environment**: `python-dotenv`
