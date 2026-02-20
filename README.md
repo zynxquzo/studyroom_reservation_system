@@ -94,7 +94,7 @@ uvicorn main:app --reload
 
 ## 🚀 Future Roadmap
 
-* [ ] **Asynchronous Support**: `SQLAlchemy AsyncSession` 도입을 통한 성능 최적화.
+* [x] **Asynchronous Support**: `SQLAlchemy AsyncSession` 도입을 통한 성능 최적화.
 * [ ] **Frontend Integration**: React/Next.js 기반의 직관적인 예약 대시보드 구현.
 * [ ] **Dockerizing**: 배포 편의성을 위한 Docker 컨테이너화.
 
