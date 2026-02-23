@@ -3,11 +3,15 @@ from contextlib import asynccontextmanager
 
 from async_database import async_engine
 from study_room import models
+from logging_config import setup_logging
+from study_room.exception_handlers import register_exception_handlers
 
 from study_room.routers.auth_router import router as auth_router
 from study_room.routers.study_room_router import router as study_room_router
 from study_room.routers.reservation_router import router as reservation_router
 from study_room.routers.review_router import router as review_router
+
+setup_logging()
 
 
 @asynccontextmanager
@@ -26,6 +30,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+register_exception_handlers(app)
 
 # 라우터 순서: study_room_router를 reservation_router보다 먼저 등록해
 # /rooms/{room_id}와 /reservations/... 경로가 겹치지 않도록 함.

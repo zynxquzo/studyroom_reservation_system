@@ -1,9 +1,10 @@
 # study_room/services/study_room_service.py
 
+import logging
 from datetime import date, datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException, status
 
+from study_room.exceptions import NotFoundException, BadRequestException
 from study_room.repositories.study_room_repository import study_room_repository
 from study_room.schemas.study_room import (
     StudyRoomListResponse,
@@ -11,6 +12,8 @@ from study_room.schemas.study_room import (
     AvailableTimesResponse,
     AvailableTimeSlot,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class StudyRoomService:
@@ -32,7 +35,7 @@ class StudyRoomService:
     async def read_room_by_id(self, db: AsyncSession, room_id: int):
         room = await study_room_repository.find_by_id(db, room_id)
         if not room:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "존재하지 않는 스터디룸입니다.")
+            raise NotFoundException("존재하지 않는 스터디룸입니다.")
         return room
 
     async def read_room_detail(self, db: AsyncSession, room_id: int) -> StudyRoomDetailResponse:
@@ -54,10 +57,7 @@ class StudyRoomService:
 
         today = date.today()
         if target_date < today or target_date > today + timedelta(days=7):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="최대 7일 이내 날짜만 선택 가능합니다.",
-            )
+            raise BadRequestException("최대 7일 이내 날짜만 선택 가능합니다.")
 
         reserved_times = await study_room_repository.get_reserved_times(db, room_id, target_date)
         reserved_set = set(reserved_times)

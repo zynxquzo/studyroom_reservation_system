@@ -1,8 +1,9 @@
 # study_room/services/review_service.py
 
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException, status
 
+from study_room.exceptions import NotFoundException, ForbiddenException, BadRequestException, DuplicateException
 from study_room.repositories.review_repository import review_repository
 from study_room.repositories.reservation_repository import reservation_repository
 from study_room.repositories.study_room_repository import study_room_repository
@@ -10,20 +11,25 @@ from study_room.models.review import Review
 from study_room.models.user import User
 from study_room.schemas.review import ReviewCreate, ReviewResponse, ReviewListItem, RoomReviewsResponse
 
+logger = logging.getLogger(__name__)
+
 
 class ReviewService:
     async def create_review(self, db: AsyncSession, data: ReviewCreate, current_user: User) -> ReviewResponse:
         reservation = await reservation_repository.find_by_id(db, data.reservation_id)
 
         if not reservation:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="존재하지 않는 예약입니다.")
+            raise NotFoundException("존재하지 않는 예약입니다.")
         if reservation.user_id != current_user.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="본인 예약에만 리뷰를 작성할 수 있습니다.")
+            logger.warning("리뷰 작성 권한 없음: user_id=%s, reservation_id=%s", current_user.id, data.reservation_id)
+            raise ForbiddenException("본인 예약에만 리뷰를 작성할 수 있습니다.")
         if reservation.status != "이용완료":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="이용 완료된 예약에만 리뷰를 작성할 수 있습니다.")
+            raise BadRequestException("이용 완료된 예약에만 리뷰를 작성할 수 있습니다.")
 
         if await review_repository.find_by_reservation_id(db, data.reservation_id):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="이미 리뷰를 작성하셨습니다.")
+            raise DuplicateException("이미 리뷰를 작성하셨습니다.")
+
+        logger.info("리뷰 작성: user_id=%s, reservation_id=%s, room_id=%s", current_user.id, data.reservation_id, reservation.room_id)
 
         async with db.begin():
             new_review = Review(
@@ -39,6 +45,7 @@ class ReviewService:
             await study_room_repository.update_rating(db, reservation.room, avg_rating)
 
         await db.refresh(new_review)
+        logger.info("리뷰 작성 완료: review_id=%s", new_review.id)
         return ReviewResponse(
             id=new_review.id,
             room_name=reservation.room.name,
@@ -50,7 +57,7 @@ class ReviewService:
     async def read_room_reviews(self, db: AsyncSession, room_id: int) -> RoomReviewsResponse:
         room = await study_room_repository.find_by_id(db, room_id)
         if not room:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="존재하지 않는 스터디룸입니다.")
+            raise NotFoundException("존재하지 않는 스터디룸입니다.")
 
         reviews = await review_repository.find_by_room_id(db, room_id)
         avg_rating = await review_repository.get_average_rating(db, room_id)
