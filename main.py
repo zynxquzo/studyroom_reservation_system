@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from async_database import async_engine
 from study_room import models
+from study_room.config import validate_required_env
 from logging_config import setup_logging
 from study_room.exception_handlers import register_exception_handlers
 
@@ -16,7 +17,8 @@ setup_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 서버 시작 시: 테이블 생성
+    # 서버 시작 시: 필수 env 검사 후 테이블 생성
+    validate_required_env()
     async with async_engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
     yield
