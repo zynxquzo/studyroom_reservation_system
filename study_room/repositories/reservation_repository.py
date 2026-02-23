@@ -3,7 +3,7 @@
 from datetime import date, time
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, update, and_, or_, func
 from study_room.models.reservation import Reservation
 
 
@@ -60,5 +60,27 @@ class ReservationRepository:
             )
         )
         return await db.scalar(stmt)
+
+    async def mark_ended_as_used(
+        self, db: AsyncSession, user_id: int, today: date, current_time: time
+    ) -> None:
+        """이용 종료된 '예약확정' 건만 한 번에 '이용완료'로 전환. 동시성 이슈 완화용 단일 UPDATE."""
+        stmt = (
+            update(Reservation)
+            .where(Reservation.user_id == user_id)
+            .where(Reservation.status == "예약확정")
+            .where(
+                or_(
+                    Reservation.reservation_date < today,
+                    and_(
+                        Reservation.reservation_date == today,
+                        Reservation.end_time <= current_time,
+                    ),
+                )
+            )
+            .values(status="이용완료")
+        )
+        await db.execute(stmt)
+
 
 reservation_repository = ReservationRepository()

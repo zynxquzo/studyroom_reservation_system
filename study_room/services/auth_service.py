@@ -35,6 +35,8 @@ class AuthService:
         return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
     async def signup(self, db: AsyncSession, data: UserCreate):
+        """회원가입. 트랜잭션 규칙: db.begin() 블록 안에서만 쓰기 후, 블록 탈출 시 자동 커밋.
+        refresh는 의도적으로 블록 밖에서 수행(커밋 후 DB 반영값(id 등)을 new_user에 채우기 위함)."""
         logger.info("회원가입 시도: student_id=%s", data.student_id)
         async with db.begin():
             if await user_repository.exists_by_student_id(db, data.student_id):

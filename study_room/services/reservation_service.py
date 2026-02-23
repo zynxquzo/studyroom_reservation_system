@@ -1,4 +1,9 @@
 # study_room/services/reservation_service.py
+#
+# 트랜잭션·세션 규칙:
+# - 한 요청 = 한 세션 = 한 트랜잭션. 서비스에서 commit/refresh 수행.
+# - create_reservation: repository.save 후 서비스에서 commit, refresh.
+# - read_my_reservations: "예약확정→이용완료" 전환은 단일 UPDATE 쿼리로 처리 후 재조회.
 
 import logging
 from datetime import date, datetime, timedelta
@@ -63,7 +68,7 @@ class ReservationService:
         try:
             await reservation_repository.save(db, new_reservation)
             await db.commit()
-            await db.refresh(new_reservation)
+            await db.refresh(new_reservation)  # 한 요청·한 트랜잭션: 서비스에서 commit 후 refresh
         except Exception as e:
             logger.exception("예약 저장 중 오류: user_id=%s, room_id=%s", current_user.id, data.room_id)
             raise AppException("예약 저장 중 오류가 발생했습니다.") from e
@@ -79,26 +84,15 @@ class ReservationService:
         )
     
     async def read_my_reservations(self, db: AsyncSession, current_user: User) -> MyReservationsResponse:
-        reservations = await reservation_repository.find_by_user_id(db, current_user.id)
-
         now = datetime.now()
         today = now.date()
         current_time = now.time()
 
-        # async with db.begin(): 를 제거합니다.
-        updated = False
-        for r in reservations:
-            if r.status == "예약확정":
-                ended = (
-                    r.reservation_date < today or
-                    (r.reservation_date == today and r.end_time <= current_time)
-                )
-                if ended:
-                    r.status = "이용완료"
-                    updated = True
-        
-        if updated:
-            await db.commit() # 변경된 상태를 DB에 반영
+        # "예약확정 → 이용완료" 전환: 단일 UPDATE로 처리해 동시 요청 시 중복 업데이트 완화
+        await reservation_repository.mark_ended_as_used(db, current_user.id, today, current_time)
+        await db.commit()
+
+        reservations = await reservation_repository.find_by_user_id(db, current_user.id)
 
         items = [
             ReservationResponse(
