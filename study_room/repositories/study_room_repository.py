@@ -33,7 +33,10 @@ class StudyRoomRepository:
         result = await db.scalars(stmt)
         return [r.start_time for r in result.all()]
 
-    async def update_rating(self, db: AsyncSession, room: StudyRoom, new_rating: float):
+    async def update_rating(self, db: AsyncSession, room: StudyRoom, new_rating: float) -> None:
+        """룸 평점을 세션 내에서만 변경. DB 반영은 호출 측에서 같은 트랜잭션을 커밋할 때 이루어짐.
+        리뷰 저장과 같은 트랜잭션에서 호출해야 하며(db.begin() 블록 안 등), 다른 서비스에서 재사용 시
+        반드시 이 메서드 호출 후 같은 세션으로 commit 해야 반영됨."""
         room.rating = new_rating
 
 

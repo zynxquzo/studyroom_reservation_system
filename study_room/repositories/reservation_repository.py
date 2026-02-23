@@ -13,6 +13,7 @@ class ReservationRepository:
         return reservation
 
     async def find_by_user_id(self, db: AsyncSession, user_id: int):
+        """내 예약 목록. joinedload(Reservation.room)으로 room 한 번에 로드 → N+1 방지, room 이름 등 조회에 사용."""
         stmt = (
             select(Reservation)
             .options(joinedload(Reservation.room))
@@ -23,6 +24,7 @@ class ReservationRepository:
         return result.all()
 
     async def find_by_id(self, db: AsyncSession, reservation_id: int):
+        """단건 조회(취소/상세 등). joinedload(Reservation.room)으로 room 이름 등 사용 시 추가 쿼리 없음."""
         stmt = (
             select(Reservation)
             .options(joinedload(Reservation.room))

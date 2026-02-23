@@ -31,6 +31,7 @@ class ReviewService:
 
         logger.info("리뷰 작성: user_id=%s, reservation_id=%s, room_id=%s", current_user.id, data.reservation_id, reservation.room_id)
 
+        # 리뷰 저장과 rating 업데이트를 한 트랜잭션으로 묶음 (update_rating은 커밋 시점에만 DB 반영됨)
         async with db.begin():
             new_review = Review(
                 reservation=reservation,
