@@ -1,0 +1,2 @@
+# 저장소에서는 LF로 통일. Windows에서도 체크아웃 시 LF 유지하면 "LF will be replaced by CRLF" 경고가 나오지 않음.
+* text=auto eol=lf
