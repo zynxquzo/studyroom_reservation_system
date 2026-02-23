@@ -27,6 +27,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# 라우터 순서: study_room_router를 reservation_router보다 먼저 등록해
+# /rooms/{room_id}와 /reservations/... 경로가 겹치지 않도록 함.
 app.include_router(auth_router)
 app.include_router(study_room_router)
 app.include_router(reservation_router)
